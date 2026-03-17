@@ -1,6 +1,6 @@
 # AI Blog Writer 🤖✍️
 
-An automated multi-agent AI system designed to research, write, and edit comprehensive, SEO-optimized blog articles. Built using **CrewAI**, **LiteLLM**, and Google's **Gemini 2.0 Flash**.
+An automated multi-agent AI system designed to research, write, and edit comprehensive, SEO-optimized blog articles. Built using **CrewAI**, **LiteLLM**, and Google's **Gemini 2.5 Flash**.
 
 ## 🚀 Overview
 
