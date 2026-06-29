@@ -1,38 +1,36 @@
 import os
 import warnings
 from dotenv import load_dotenv
-from crewai import Agent, Task, Crew
+# pyrefly: ignore [missing-import]
+from crewai import Agent, Task, Crew, LLM
+# pyrefly: ignore [missing-import]
+import crewai.llms.cache as _crewai_cache
+# pyrefly: ignore [missing-import]
+import litellm
+# pyrefly: ignore [missing-import]
 from litellm import completion
+
+# Configure LiteLLM to automatically handle RateLimit errors
+litellm.num_retries = 5
+litellm.max_backoff = 60
+
+# Monkey-patch to prevent cache_breakpoint injection
+_crewai_cache.mark_cache_breakpoint = lambda msg: msg
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 
 # Securely load API keys from the .env file
-load_dotenv()
-
-# Register Gemini model with LiteLLM
-import litellm
-litellm.model_list = [
-    {
-        "model_name": "gemini-2.0-flash",
-        "litellm_provider": "gemini",
-        "api_key": os.environ.get("GEMINI_API_KEY")
-    }
-]
-
-class GeminiLLM:
-    def __init__(self, model="gemini/gemini-2.0-flash"):
-        self.model = model
-
-    def __call__(self, prompt: str):
-        response = completion(model=self.model, messages=[{"role": "user", "content": prompt}])
-        return response['choices'][0]['message']['content']
+load_dotenv(override=True)
 
 def main():
     # Initialize the LLM
-    gemini_llm = GeminiLLM()
+    ollama_llm = LLM(
+        model="ollama/llama3",
+        base_url="http://localhost:11434"
+    )
 
-    print("🤖 Initializing AI Blog Writer Agents...")
+    print("Initializing AI Blog Writer Agents...")
 
     # 1. Define Agents
     planner = Agent(
@@ -41,7 +39,7 @@ def main():
         backstory="You're working on planning a blog article about the topic: {topic}.",
         allow_delegation=False,
         verbose=True,
-        llm=gemini_llm
+        llm=ollama_llm
     )
 
     writer = Agent(
@@ -50,7 +48,7 @@ def main():
         backstory="You're writing a new opinion piece based on the planner's outline.",
         allow_delegation=False,
         verbose=True,
-        llm=gemini_llm
+        llm=ollama_llm
     )
 
     editor = Agent(
@@ -59,7 +57,7 @@ def main():
         backstory="You ensure clarity, consistency, and professional tone.",
         allow_delegation=False,
         verbose=True,
-        llm=gemini_llm
+        llm=ollama_llm
     )
 
     # 2. Define Tasks
@@ -96,7 +94,8 @@ def main():
     crew = Crew(
         tasks=[plan, write, edit],
         agents=[planner, writer, editor],
-        verbose=True
+        verbose=True,
+        max_rpm=10 # Throttle requests to avoid hitting Gemini Free Tier 15 RPM limit
     )
 
     # 4. Dynamic Execution
